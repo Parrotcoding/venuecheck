@@ -70,12 +70,25 @@
       margin-top: 1rem;
     }
 
-    canvas {
-      border: 2px solid #ccc;
-      border-radius: var(--border-radius);
-      width: 100%;
-      height: 200px;
-      cursor: crosshair;
+    .spinner {
+      border: 6px solid #eee;
+      border-top: 6px solid var(--primary);
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      margin: 2rem auto 1rem;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .status {
+      font-size: 1rem;
+      color: var(--text);
+      min-height: 1.5rem;
     }
 
     .checkmark {
@@ -111,10 +124,6 @@
       100% { transform: scale(1); opacity: 1; }
     }
 
-    .hidden {
-      display: none;
-    }
-
     .welcome {
       font-size: 1.3rem;
       color: var(--text);
@@ -127,30 +136,8 @@
       to { opacity: 1; }
     }
 
-    .confetti {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      overflow: hidden;
-      z-index: 10;
-    }
-
-    .confetti-piece {
-      width: 10px;
-      height: 10px;
-      position: absolute;
-      background: red;
-      animation: fall 2s linear forwards;
-      opacity: 0.8;
-    }
-
-    @keyframes fall {
-      to {
-        transform: translateY(100vh) rotate(720deg);
-        opacity: 0;
-      }
+    .hidden {
+      display: none;
     }
   </style>
 </head>
@@ -169,13 +156,12 @@
   <div class="card hidden" id="phone-screen">
     <h2>Your registered phone number</h2>
     <input type="tel" id="phone" />
-    <button onclick="nextStep()">Next</button>
+    <button onclick="startLoading()">Submit</button>
   </div>
 
-  <div class="card hidden" id="sign-screen">
-    <h2>Sign here</h2>
-    <canvas id="signature"></canvas>
-    <button onclick="nextStep()">Confirm Entry</button>
+  <div class="card hidden" id="loading-screen">
+    <div class="spinner"></div>
+    <div class="status" id="status-message">Starting authentication...</div>
   </div>
 
   <div class="card hidden" id="confirmation-screen">
@@ -185,96 +171,45 @@
     <div class="welcome">Welcome to the concert!</div>
   </div>
 
-  <div class="confetti" id="confetti"></div>
-
   <script>
     let step = 0;
-    const steps = ["start-screen", "name-screen", "phone-screen", "sign-screen", "confirmation-screen"];
-    const canvas = document.getElementById("signature");
-    const ctx = canvas.getContext("2d");
-    let drawing = false;
-
-    function resizeCanvas() {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-    }
-
-    window.addEventListener("resize", resizeCanvas);
-    window.addEventListener("load", resizeCanvas);
-
-    canvas.addEventListener("mousedown", startDraw);
-    canvas.addEventListener("mouseup", endDraw);
-    canvas.addEventListener("mousemove", draw);
-
-    canvas.addEventListener("touchstart", e => startDraw(e.touches[0]));
-    canvas.addEventListener("touchend", endDraw);
-    canvas.addEventListener("touchmove", e => {
-      e.preventDefault();
-      draw(e.touches[0]);
-    }, { passive: false });
-
-    function startDraw(e) {
-      drawing = true;
-      ctx.beginPath();
-      draw(e);
-    }
-
-    function endDraw() {
-      drawing = false;
-      ctx.beginPath();
-    }
-
-    function draw(e) {
-      if (!drawing) return;
-      const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX || e.pageX) - rect.left;
-      const y = (e.clientY || e.pageY) - rect.top;
-      ctx.lineWidth = 2;
-      ctx.lineCap = "round";
-      ctx.strokeStyle = "#333";
-      ctx.lineTo(x, y);
-      ctx.stroke();
-      ctx.moveTo(x, y);
-    }
+    const steps = ["start-screen", "name-screen", "phone-screen", "loading-screen", "confirmation-screen"];
+    const messages = [
+      "Communicating with database...",
+      "Finding name...",
+      "Checking access level...",
+      "Finalizing credentials...",
+      "Access granted."
+    ];
 
     function nextStep() {
       document.getElementById(steps[step]).classList.add("hidden");
       step++;
       document.getElementById(steps[step]).classList.remove("hidden");
-
-      if (step === steps.length - 1) {
-        launchConfetti();
-        setTimeout(() => {
-          document.getElementById("confetti").innerHTML = "";
-          document.getElementById(steps[step]).classList.add("hidden");
-          step = 0;
-          document.getElementById(steps[step]).classList.remove("hidden");
-          document.getElementById("name").value = '';
-          document.getElementById("phone").value = '';
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }, 5000);
-      }
     }
 
-    function launchConfetti() {
-      const confetti = document.getElementById("confetti");
-      confetti.innerHTML = '';
-      for (let i = 0; i < 80; i++) {
-        const piece = document.createElement("div");
-        piece.className = "confetti-piece";
-        const hue = Math.floor(Math.random() * 360);
-        const left = Math.random() * 100;
-        const delay = Math.random() * 1;
-        const scale = Math.random() * 1 + 0.5;
-        const rotate = Math.random() * 360;
+    function startLoading() {
+      nextStep(); // go to loading-screen
+      const status = document.getElementById("status-message");
+      let i = 0;
 
-        piece.style.left = `${left}%`;
-        piece.style.backgroundColor = `hsl(${hue}, 100%, 60%)`;
-        piece.style.animationDelay = `${delay}s`;
-        piece.style.transform = `scale(${scale}) rotate(${rotate}deg)`;
+      const interval = setInterval(() => {
+        if (i < messages.length) {
+          status.textContent = messages[i++];
+        } else {
+          clearInterval(interval);
+          document.getElementById("loading-screen").classList.add("hidden");
+          document.getElementById("confirmation-screen").classList.remove("hidden");
 
-        confetti.appendChild(piece);
-      }
+          setTimeout(() => {
+            document.getElementById("confirmation-screen").classList.add("hidden");
+            step = 0;
+            document.getElementById("name").value = '';
+            document.getElementById("phone").value = '';
+            document.getElementById("start-screen").classList.remove("hidden");
+          }, 4000);
+        }
+      }, 900);
     }
   </script>
 </body>
