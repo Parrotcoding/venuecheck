@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Concert Entry</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --card: white;
+      --primary: #7c4dff;
+      --text: #333;
+      --border-radius: 24px;
+      --pill-radius: 999px;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .card {
+      background: var(--card);
+      padding: 2rem;
+      border-radius: var(--border-radius);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 100%;
+      max-width: 400px;
+      transition: all 0.5s ease;
+    }
+
+    .logo {
+      width: 100%;
+      max-width: 500px;
+      max-height: 500px;
+      margin: 0 auto 1rem;
+      background: #ddd;
+      border-radius: var(--border-radius);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 1.2rem;
+      color: #777;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      margin: 0.5rem 0;
+      border: 2px solid #ccc;
+      border-radius: var(--pill-radius);
+      font-size: 1rem;
+      outline: none;
+      transition: 0.3s;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+    }
+
+    button {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: var(--pill-radius);
+      background: var(--primary);
+      color: white;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 1rem;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #6a35ff;
+    }
+
+    .checkmark {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 4px solid var(--primary);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 2rem auto;
+      animation: pop 0.4s ease-out;
+    }
+
+    .checkmark svg {
+      width: 40px;
+      height: 40px;
+      stroke: var(--primary);
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      animation: draw 0.6s ease forwards;
+    }
+
+    @keyframes draw {
+      from { stroke-dasharray: 50; stroke-dashoffset: 50; }
+      to { stroke-dasharray: 50; stroke-dashoffset: 0; }
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .welcome {
+      font-size: 1.3rem;
+      color: var(--text);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="card" id="entry-screen">
+    <div class="logo">Concert Logo</div>
+    <input type="text" id="name" placeholder="Enter your name" />
+    <input type="tel" id="phone" placeholder="Phone number you registered with" />
+    <button onclick="confirmEntry()">Confirm</button>
+  </div>
+
+  <div class="card hidden" id="confirmation-screen">
+    <div class="checkmark">
+      <svg viewBox="0 0 24 24">
+        <polyline points="4 12 10 17 20 7" />
+      </svg>
+    </div>
+    <div class="welcome">Welcome to the concert!</div>
+  </div>
+
+  <script>
+    function confirmEntry() {
+      const name = document.getElementById('name').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+
+      if (name && phone) {
+        document.getElementById('entry-screen').classList.add('hidden');
+        document.getElementById('confirmation-screen').classList.remove('hidden');
+
+        setTimeout(() => {
+          document.getElementById('confirmation-screen').classList.add('hidden');
+          document.getElementById('entry-screen').classList.remove('hidden');
+          document.getElementById('name').value = '';
+          document.getElementById('phone').value = '';
+        }, 3500);
+      } else {
+        alert("Please enter both your name and phone number.");
+      }
+    }
+  </script>
+</body>
+</html>
