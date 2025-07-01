@@ -46,13 +46,8 @@
       max-width: 500px;
       max-height: 500px;
       margin: 0 auto 1rem;
-      background: #ddd;
       border-radius: var(--border-radius);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 1.2rem;
-      color: #777;
+      object-fit: cover;
     }
 
     input {
@@ -133,7 +128,7 @@
 </head>
 <body>
   <div class="card" id="entry-screen">
-    <div class="logo">Concert Logo</div>
+    <img class="logo" src="your-logo.png" alt="Concert Logo" />
     <input type="text" id="name" placeholder="Enter your name" />
     <input type="tel" id="phone" placeholder="Phone number you registered with" />
     <button onclick="confirmEntry()">Confirm</button>
