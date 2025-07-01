@@ -43,8 +43,8 @@
 
     .logo {
       width: 100%;
-      max-width: 500px;
-      max-height: 500px;
+      max-width: 300px;
+      max-height: 300px;
       margin: 0 auto 1rem;
       border-radius: var(--border-radius);
       object-fit: cover;
@@ -59,10 +59,6 @@
       font-size: 1rem;
       outline: none;
       transition: 0.3s;
-    }
-
-    input:focus {
-      border-color: var(--primary);
     }
 
     button {
@@ -80,6 +76,15 @@
 
     button:hover {
       background: #6a35ff;
+    }
+
+    canvas {
+      border: 2px solid #ccc;
+      border-radius: var(--border-radius);
+      width: 100%;
+      height: 200px;
+      cursor: crosshair;
+      margin-top: 0.5rem;
     }
 
     .checkmark {
@@ -123,44 +128,130 @@
       font-size: 1.3rem;
       color: var(--text);
       font-weight: bold;
+      opacity: 0;
+      animation: fadein 1s 0.5s forwards;
+    }
+
+    @keyframes fadein {
+      to { opacity: 1; }
+    }
+
+    .confetti {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .confetti div {
+      width: 10px;
+      height: 10px;
+      background: hsl(calc(360 * var(--i)), 100%, 70%);
+      position: absolute;
+      top: 0;
+      left: calc(var(--i) * 100%);
+      animation: fall 2s linear infinite;
+    }
+
+    @keyframes fall {
+      0% { transform: translateY(-100%) rotate(0); }
+      100% { transform: translateY(100vh) rotate(360deg); }
     }
   </style>
 </head>
 <body>
-  <div class="card" id="entry-screen">
+  <div class="card" id="start-screen">
     <img class="logo" src="your-logo.png" alt="Concert Logo" />
-    <input type="text" id="name" placeholder="Enter your name" />
-    <input type="tel" id="phone" placeholder="Phone number you registered with" />
-    <button onclick="confirmEntry()">Confirm</button>
+    <button onclick="nextStep()">Click to Begin</button>
+  </div>
+
+  <div class="card hidden" id="name-screen">
+    <h2>Enter your name</h2>
+    <input type="text" id="name" />
+    <button onclick="nextStep()">Next</button>
+  </div>
+
+  <div class="card hidden" id="phone-screen">
+    <h2>Your registered phone number</h2>
+    <input type="tel" id="phone" />
+    <button onclick="nextStep()">Next</button>
+  </div>
+
+  <div class="card hidden" id="sign-screen">
+    <h2>Sign here</h2>
+    <canvas id="signature"></canvas>
+    <button onclick="nextStep()">Confirm Entry</button>
   </div>
 
   <div class="card hidden" id="confirmation-screen">
     <div class="checkmark">
-      <svg viewBox="0 0 24 24">
-        <polyline points="4 12 10 17 20 7" />
-      </svg>
+      <svg viewBox="0 0 24 24"><polyline points="4 12 10 17 20 7" /></svg>
     </div>
     <div class="welcome">Welcome to the concert!</div>
   </div>
 
+  <div class="confetti hidden" id="confetti"></div>
+
   <script>
-    function confirmEntry() {
-      const name = document.getElementById('name').value.trim();
-      const phone = document.getElementById('phone').value.trim();
+    let step = 0;
+    const steps = ["start-screen", "name-screen", "phone-screen", "sign-screen", "confirmation-screen"];
+    const canvas = document.getElementById("signature");
+    const ctx = canvas.getContext("2d");
+    let drawing = false;
 
-      if (name && phone) {
-        document.getElementById('entry-screen').classList.add('hidden');
-        document.getElementById('confirmation-screen').classList.remove('hidden');
+    function resizeCanvas() {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
 
+    canvas.addEventListener("mousedown", () => drawing = true);
+    canvas.addEventListener("mouseup", () => drawing = false);
+    canvas.addEventListener("mousemove", e => {
+      if (!drawing) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#333";
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    });
+
+    function nextStep() {
+      document.getElementById(steps[step]).classList.add("hidden");
+      step++;
+      document.getElementById(steps[step]).classList.remove("hidden");
+
+      if (step === steps.length - 1) {
+        showConfetti();
         setTimeout(() => {
-          document.getElementById('confirmation-screen').classList.add('hidden');
-          document.getElementById('entry-screen').classList.remove('hidden');
-          document.getElementById('name').value = '';
-          document.getElementById('phone').value = '';
-        }, 3500);
-      } else {
-        alert("Please enter both your name and phone number.");
+          document.getElementById("confetti").classList.add("hidden");
+          document.getElementById(steps[step]).classList.add("hidden");
+          step = 0;
+          document.getElementById(steps[step]).classList.remove("hidden");
+          document.getElementById("name").value = '';
+          document.getElementById("phone").value = '';
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }, 5000);
       }
+    }
+
+    function showConfetti() {
+      const confetti = document.getElementById("confetti");
+      confetti.innerHTML = '';
+      for (let i = 0; i < 30; i++) {
+        const c = document.createElement("div");
+        c.style.setProperty("--i", Math.random());
+        confetti.appendChild(c);
+      }
+      confetti.classList.remove("hidden");
     }
   </script>
 </body>
