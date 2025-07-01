@@ -22,12 +22,12 @@
 
     body {
       margin: 0;
-      padding: 0;
       background: var(--bg);
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
+      overflow: hidden;
     }
 
     .card {
@@ -38,13 +38,11 @@
       text-align: center;
       width: 100%;
       max-width: 400px;
-      transition: all 0.5s ease;
     }
 
     .logo {
       width: 100%;
       max-width: 300px;
-      max-height: 300px;
       margin: 0 auto 1rem;
       border-radius: var(--border-radius);
       object-fit: cover;
@@ -58,7 +56,6 @@
       border-radius: var(--pill-radius);
       font-size: 1rem;
       outline: none;
-      transition: 0.3s;
     }
 
     button {
@@ -71,11 +68,6 @@
       font-size: 1rem;
       cursor: pointer;
       margin-top: 1rem;
-      transition: 0.3s;
-    }
-
-    button:hover {
-      background: #6a35ff;
     }
 
     canvas {
@@ -84,7 +76,6 @@
       width: 100%;
       height: 200px;
       cursor: crosshair;
-      margin-top: 0.5rem;
     }
 
     .checkmark {
@@ -143,21 +134,23 @@
       height: 100%;
       pointer-events: none;
       overflow: hidden;
+      z-index: 10;
     }
 
-    .confetti div {
+    .confetti-piece {
       width: 10px;
       height: 10px;
-      background: hsl(calc(360 * var(--i)), 100%, 70%);
       position: absolute;
-      top: 0;
-      left: calc(var(--i) * 100%);
-      animation: fall 2s linear infinite;
+      background: red;
+      animation: fall 2s linear forwards;
+      opacity: 0.8;
     }
 
     @keyframes fall {
-      0% { transform: translateY(-100%) rotate(0); }
-      100% { transform: translateY(100vh) rotate(360deg); }
+      to {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+      }
     }
   </style>
 </head>
@@ -192,7 +185,7 @@
     <div class="welcome">Welcome to the concert!</div>
   </div>
 
-  <div class="confetti hidden" id="confetti"></div>
+  <div class="confetti" id="confetti"></div>
 
   <script>
     let step = 0;
@@ -205,24 +198,44 @@
       canvas.width = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
     }
-    window.addEventListener("resize", resizeCanvas);
-    resizeCanvas();
 
-    canvas.addEventListener("mousedown", () => drawing = true);
-    canvas.addEventListener("mouseup", () => drawing = false);
-    canvas.addEventListener("mousemove", e => {
+    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("load", resizeCanvas);
+
+    canvas.addEventListener("mousedown", startDraw);
+    canvas.addEventListener("mouseup", endDraw);
+    canvas.addEventListener("mousemove", draw);
+
+    canvas.addEventListener("touchstart", e => startDraw(e.touches[0]));
+    canvas.addEventListener("touchend", endDraw);
+    canvas.addEventListener("touchmove", e => {
+      e.preventDefault();
+      draw(e.touches[0]);
+    }, { passive: false });
+
+    function startDraw(e) {
+      drawing = true;
+      ctx.beginPath();
+      draw(e);
+    }
+
+    function endDraw() {
+      drawing = false;
+      ctx.beginPath();
+    }
+
+    function draw(e) {
       if (!drawing) return;
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      const x = (e.clientX || e.pageX) - rect.left;
+      const y = (e.clientY || e.pageY) - rect.top;
       ctx.lineWidth = 2;
       ctx.lineCap = "round";
       ctx.strokeStyle = "#333";
       ctx.lineTo(x, y);
       ctx.stroke();
-      ctx.beginPath();
       ctx.moveTo(x, y);
-    });
+    }
 
     function nextStep() {
       document.getElementById(steps[step]).classList.add("hidden");
@@ -230,9 +243,9 @@
       document.getElementById(steps[step]).classList.remove("hidden");
 
       if (step === steps.length - 1) {
-        showConfetti();
+        launchConfetti();
         setTimeout(() => {
-          document.getElementById("confetti").classList.add("hidden");
+          document.getElementById("confetti").innerHTML = "";
           document.getElementById(steps[step]).classList.add("hidden");
           step = 0;
           document.getElementById(steps[step]).classList.remove("hidden");
@@ -243,15 +256,25 @@
       }
     }
 
-    function showConfetti() {
+    function launchConfetti() {
       const confetti = document.getElementById("confetti");
       confetti.innerHTML = '';
-      for (let i = 0; i < 30; i++) {
-        const c = document.createElement("div");
-        c.style.setProperty("--i", Math.random());
-        confetti.appendChild(c);
+      for (let i = 0; i < 80; i++) {
+        const piece = document.createElement("div");
+        piece.className = "confetti-piece";
+        const hue = Math.floor(Math.random() * 360);
+        const left = Math.random() * 100;
+        const delay = Math.random() * 1;
+        const scale = Math.random() * 1 + 0.5;
+        const rotate = Math.random() * 360;
+
+        piece.style.left = `${left}%`;
+        piece.style.backgroundColor = `hsl(${hue}, 100%, 60%)`;
+        piece.style.animationDelay = `${delay}s`;
+        piece.style.transform = `scale(${scale}) rotate(${rotate}deg)`;
+
+        confetti.appendChild(piece);
       }
-      confetti.classList.remove("hidden");
     }
   </script>
 </body>
