@@ -17,19 +17,82 @@
       --pill-radius: 999px;
     }
 
-    * {
-      box-sizing: border-box;
-      font-family: 'Inter', sans-serif;
-    }
+    * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
 
     html, body {
       margin: 0;
       padding: 0;
       background: var(--bg);
       min-height: 100vh;
+    }
+
+    /* === Fullscreen lock screen === */
+    #lock-screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: var(--bg);
+      z-index: 9999;
+    }
+
+    .lock-inner {
+      width: 100%;
+      max-width: 520px;
+      background: var(--card);
+      border-radius: var(--border-radius);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      padding: 2.25rem;
+      text-align: center;
+    }
+
+    .logo {
+      width: 100%;
+      max-width: 360px;
+      margin: 0 auto 1.25rem;
+      border-radius: var(--border-radius);
+      object-fit: cover;
+      display: block;
+    }
+
+    .locked-title {
+      margin: 0.25rem 0 0.25rem;
+      font-size: 1.4rem;
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .locked-sub {
+      margin: 0 0 1.5rem;
+      color: #555;
+      font-size: 1rem;
+    }
+
+    .countdown {
+      font-size: 2.6rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .countdown-label {
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+      color: #666;
+    }
+
+    .hidden { display: none; }
+
+    /* === Your original kiosk card styling === */
+    .kiosk-wrap {
+      min-height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
+      padding: 2rem;
     }
 
     .card {
@@ -40,14 +103,6 @@
       text-align: center;
       width: 100%;
       max-width: 400px;
-    }
-
-    .logo {
-      width: 100%;
-      max-width: 300px;
-      margin: 0 auto 1rem;
-      border-radius: var(--border-radius);
-      object-fit: cover;
     }
 
     input {
@@ -134,50 +189,119 @@
       animation: fadein 1s 0.5s forwards;
     }
 
-    @keyframes fadein {
-      to { opacity: 1; }
-    }
-
-    .hidden {
-      display: none;
-    }
+    @keyframes fadein { to { opacity: 1; } }
   </style>
 </head>
 
 <body>
 
-  <div class="card" id="start-screen">
-    <img class="logo" src="your-logo.png" alt="Concert Logo" />
-    <button onclick="begin()">Click to Begin</button>
-  </div>
+  <!-- FULLSCREEN LOCK SCREEN (logo + countdown) -->
+  <div id="lock-screen">
+    <div class="lock-inner">
+      <img class="logo" src="your-logo.png" alt="Concert Logo" />
+      <div class="locked-title">Kiosk opens at 4:00 PM</div>
+      <div class="locked-sub">Please wait — entry will unlock automatically.</div>
 
-  <div class="card hidden" id="name-screen">
-    <h2>Enter your name</h2>
-    <input type="text" id="name" />
-    <button onclick="nextStep()">Next</button>
-  </div>
-
-  <div class="card hidden" id="phone-screen">
-    <h2>Your registered phone number</h2>
-    <input type="tel" id="phone" />
-    <button onclick="startLoading()">Submit</button>
-  </div>
-
-  <div class="card hidden" id="loading-screen">
-    <div class="spinner"></div>
-    <div class="status" id="status-message">Starting authentication...</div>
-  </div>
-
-  <div class="card hidden" id="confirmation-screen">
-    <div class="checkmark">
-      <svg viewBox="0 0 24 24">
-        <polyline points="4 12 10 17 20 7" />
-      </svg>
+      <div class="countdown" id="countdown">00:00:00</div>
+      <div class="countdown-label" id="countdown-label">Time remaining</div>
     </div>
-    <div class="welcome">Welcome to the concert!</div>
+  </div>
+
+  <!-- NORMAL KIOSK UI (hidden behind lock screen until 4pm) -->
+  <div class="kiosk-wrap">
+    <div class="card" id="start-screen">
+      <img class="logo" src="your-logo.png" alt="Concert Logo" />
+      <button onclick="begin()">Click to Begin</button>
+    </div>
+
+    <div class="card hidden" id="name-screen">
+      <h2>Enter your name</h2>
+      <input type="text" id="name" />
+      <button onclick="nextStep()">Next</button>
+    </div>
+
+    <div class="card hidden" id="phone-screen">
+      <h2>Your registered phone number</h2>
+      <input type="tel" id="phone" />
+      <button onclick="startLoading()">Submit</button>
+    </div>
+
+    <div class="card hidden" id="loading-screen">
+      <div class="spinner"></div>
+      <div class="status" id="status-message">Starting authentication...</div>
+    </div>
+
+    <div class="card hidden" id="confirmation-screen">
+      <div class="checkmark">
+        <svg viewBox="0 0 24 24">
+          <polyline points="4 12 10 17 20 7" />
+        </svg>
+      </div>
+      <div class="welcome">Welcome to the concert!</div>
+    </div>
   </div>
 
   <script>
+    /* ========= Lock logic: countdown to 4:00 PM daily ========= */
+    const lockScreen = document.getElementById("lock-screen");
+    const countdownEl = document.getElementById("countdown");
+    const countdownLabelEl = document.getElementById("countdown-label");
+
+    function getNextFourPM(now) {
+      // 4:00 PM today
+      const fourPM = new Date(now);
+      fourPM.setHours(16, 0, 0, 0);
+
+      // If it's already past 4pm, unlock (today). If it's after midnight next day, this will be recomputed.
+      return fourPM;
+    }
+
+    function pad2(n) {
+      return String(n).padStart(2, "0");
+    }
+
+    function updateLockState() {
+      const now = new Date();
+      const fourPM = getNextFourPM(now);
+
+      if (now >= fourPM) {
+        // Unlocked for the rest of the day (until midnight logic kicks in below)
+        lockScreen.classList.add("hidden");
+        return;
+      }
+
+      // Locked: show countdown
+      lockScreen.classList.remove("hidden");
+
+      const diffMs = fourPM - now;
+      const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+
+      countdownEl.textContent = `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;
+      countdownLabelEl.textContent = "Time remaining until 4:00 PM";
+    }
+
+    // Re-lock after midnight (so it works if kiosk stays on overnight)
+    function scheduleMidnightRefresh() {
+      const now = new Date();
+      const nextMidnight = new Date(now);
+      nextMidnight.setHours(24, 0, 0, 0);
+      const msUntilMidnight = nextMidnight - now;
+
+      setTimeout(() => {
+        // At midnight, lockScreen may need to reappear until 4pm again
+        updateLockState();
+        scheduleMidnightRefresh();
+      }, msUntilMidnight + 50);
+    }
+
+    updateLockState();
+    setInterval(updateLockState, 1000);
+    scheduleMidnightRefresh();
+
+    /* ========= Your existing kiosk flow ========= */
     let step = 0;
     const steps = [
       "start-screen",
