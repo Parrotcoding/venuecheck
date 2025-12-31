@@ -26,67 +26,51 @@
       min-height: 100vh;
     }
 
-    /* === Fullscreen lock screen === */
+    .hidden { display: none; }
+
+    /* === LOCK SCREEN === */
     #lock-screen {
       position: fixed;
       inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
       background: var(--bg);
+      display: flex;
+      justify-content: center;
+      align-items: center;
       z-index: 9999;
+      padding: 2rem;
     }
 
     .lock-inner {
-      width: 100%;
-      max-width: 520px;
       background: var(--card);
+      padding: 2.5rem;
       border-radius: var(--border-radius);
       box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-      padding: 2.25rem;
       text-align: center;
+      max-width: 420px;
+      width: 100%;
     }
 
     .logo {
       width: 100%;
       max-width: 360px;
-      margin: 0 auto 1.25rem;
+      margin: 0 auto 1.5rem;
       border-radius: var(--border-radius);
-      object-fit: cover;
       display: block;
     }
 
     .locked-title {
-      margin: 0.25rem 0 0.25rem;
       font-size: 1.4rem;
-      color: var(--text);
       font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--text);
     }
 
     .locked-sub {
-      margin: 0 0 1.5rem;
-      color: #555;
+      color: #666;
       font-size: 1rem;
     }
 
-    .countdown {
-      font-size: 2.6rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      color: var(--primary);
-      font-variant-numeric: tabular-nums;
-    }
-
-    .countdown-label {
-      margin-top: 0.5rem;
-      font-size: 0.95rem;
-      color: #666;
-    }
-
-    .hidden { display: none; }
-
-    /* === Kiosk card styling === */
+    /* === KIOSK === */
     .kiosk-wrap {
       min-height: 100vh;
       display: flex;
@@ -112,7 +96,6 @@
       border: 2px solid #ccc;
       border-radius: var(--pill-radius);
       font-size: 1rem;
-      outline: none;
     }
 
     button {
@@ -138,14 +121,7 @@
     }
 
     @keyframes spin {
-      0% { transform: rotate(0); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .status {
-      font-size: 1rem;
-      color: var(--text);
-      min-height: 1.5rem;
+      to { transform: rotate(360deg); }
     }
 
     .checkmark {
@@ -154,10 +130,9 @@
       border-radius: 50%;
       border: 4px solid var(--primary);
       display: flex;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
       margin: 2rem auto;
-      animation: pop 0.4s ease-out;
     }
 
     .checkmark svg {
@@ -165,49 +140,29 @@
       height: 40px;
       stroke: var(--primary);
       stroke-width: 4;
-      stroke-linecap: round;
-      stroke-linejoin: round;
       fill: none;
-      animation: draw 0.6s ease forwards;
-    }
-
-    @keyframes draw {
-      from { stroke-dasharray: 50; stroke-dashoffset: 50; }
-      to { stroke-dasharray: 50; stroke-dashoffset: 0; }
-    }
-
-    @keyframes pop {
-      0% { transform: scale(0.5); opacity: 0; }
-      100% { transform: scale(1); opacity: 1; }
     }
 
     .welcome {
       font-size: 1.3rem;
-      color: var(--text);
       font-weight: bold;
-      opacity: 0;
-      animation: fadein 1s 0.5s forwards;
+      color: var(--text);
     }
-
-    @keyframes fadein { to { opacity: 1; } }
   </style>
 </head>
 
 <body>
 
-  <!-- FULLSCREEN LOCK SCREEN (logo + countdown) -->
+  <!-- LOCK SCREEN -->
   <div id="lock-screen">
     <div class="lock-inner">
       <img class="logo" src="your-logo.png" alt="Concert Logo" />
-      <div class="locked-title">Kiosk opens at 4:00 PM</div>
-      <div class="locked-sub">Please wait — entry will unlock automatically.</div>
-
-      <div class="countdown" id="countdown">00:00:00</div>
-      <div class="countdown-label" id="countdown-label">Time remaining</div>
+      <div class="locked-title">Kiosk Locked</div>
+      <div class="locked-sub">Please wait for staff to unlock</div>
     </div>
   </div>
 
-  <!-- NORMAL KIOSK UI -->
+  <!-- KIOSK -->
   <div class="kiosk-wrap">
     <div class="card" id="start-screen">
       <img class="logo" src="your-logo.png" alt="Concert Logo" />
@@ -228,7 +183,7 @@
 
     <div class="card hidden" id="loading-screen">
       <div class="spinner"></div>
-      <div class="status" id="status-message">Starting authentication...</div>
+      <div id="status-message">Checking access...</div>
     </div>
 
     <div class="card hidden" id="confirmation-screen">
@@ -242,85 +197,31 @@
   </div>
 
   <script>
-    /* ========= Lock logic: unlock at 4:00 PM, re-lock after midnight ========= */
+    const LOCK_URL = "https://zwfucjsugrbjmcwhhcnj.supabase.co/functions/v1/status";
     const lockScreen = document.getElementById("lock-screen");
-    const countdownEl = document.getElementById("countdown");
-    const countdownLabelEl = document.getElementById("countdown-label");
 
-    function pad2(n) {
-      return String(n).padStart(2, "0");
-    }
+    async function checkLock() {
+      try {
+        const res = await fetch(LOCK_URL, { cache: "no-store" });
+        const text = (await res.text()).trim().toLowerCase();
 
-    function todayAt(hours, minutes, seconds = 0, ms = 0) {
-      const d = new Date();
-      d.setHours(hours, minutes, seconds, ms);
-      return d;
-    }
-
-    function startOfTomorrow() {
-      const d = new Date();
-      d.setHours(24, 0, 0, 0); // midnight next day
-      return d;
-    }
-
-    function isUnlockedNow(now = new Date()) {
-      // Unlocked from 4:00 PM until midnight
-      const openTime = new Date(now);
-      openTime.setHours(16, 0, 0, 0);
-
-      const midnight = new Date(now);
-      midnight.setHours(24, 0, 0, 0);
-
-      return now >= openTime && now < midnight;
-    }
-
-    function nextOpenTime(now = new Date()) {
-      // Next upcoming 4:00 PM (today if before 4pm, otherwise tomorrow)
-      const open = new Date(now);
-      open.setHours(16, 0, 0, 0);
-      if (now < open) return open;
-
-      open.setDate(open.getDate() + 1);
-      return open;
-    }
-
-    function updateLockState() {
-      const now = new Date();
-
-      if (isUnlockedNow(now)) {
-        lockScreen.classList.add("hidden");
-        return;
+        if (text === "yes") {
+          lockScreen.classList.remove("hidden");
+        } else {
+          lockScreen.classList.add("hidden");
+        }
+      } catch (err) {
+        // Fail-safe: keep locked if network breaks
+        lockScreen.classList.remove("hidden");
+        console.error("Lock check failed:", err);
       }
-
-      lockScreen.classList.remove("hidden");
-
-      const target = nextOpenTime(now);
-      const diffMs = target - now;
-
-      const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-
-      countdownEl.textContent = `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;
-      countdownLabelEl.textContent = "Time remaining until 4:00 PM";
     }
 
-    // Hard refresh lock state at midnight to guarantee re-locking behavior
-    function scheduleMidnightRefresh() {
-      const now = new Date();
-      const msUntilMidnight = startOfTomorrow() - now;
-      setTimeout(() => {
-        updateLockState();
-        scheduleMidnightRefresh();
-      }, msUntilMidnight + 50);
-    }
+    // Poll every 5 seconds
+    checkLock();
+    setInterval(checkLock, 5000);
 
-    updateLockState();
-    setInterval(updateLockState, 1000);
-    scheduleMidnightRefresh();
-
-    /* ========= Kiosk flow ========= */
+    /* === Kiosk Flow === */
     let step = 0;
     const steps = [
       "start-screen",
