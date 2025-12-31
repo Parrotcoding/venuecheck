@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Partner Registration Kiosk</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --card: white;
+      --primary: #7c4dff;
+      --text: #333;
+      --border-radius: 24px;
+      --pill-radius: 999px;
+    }
+
+    * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      min-height: 100vh;
+    }
+
+    .hidden { display: none; }
+
+    .kiosk-wrap {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    .card {
+      background: var(--card);
+      padding: 2rem;
+      border-radius: var(--border-radius);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .logo {
+      width: 100%;
+      max-width: 360px;
+      margin: 0 auto 1.5rem;
+      border-radius: var(--border-radius);
+      display: block;
+    }
+
+    h2 { margin-bottom: 0.75rem; color: var(--text); }
+    .sub { color: #666; margin-bottom: 1.25rem; }
+
+    input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      margin: 0.5rem 0;
+      border: 2px solid #ccc;
+      border-radius: var(--pill-radius);
+      font-size: 1rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 0.75rem;
+      border: none;
+      border-radius: var(--pill-radius);
+      background: var(--primary);
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    .secondary {
+      background: #e9e5ff;
+      color: #3b2fb9;
+    }
+
+    /* === WAIT STATE === */
+    .arrow {
+      font-size: 5rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin: 1.5rem 0 0.5rem;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(12px); }
+    }
+
+    .wait-text {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .spinner {
+      border: 6px solid #eee;
+      border-top: 6px solid var(--primary);
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      margin: 2rem auto 1rem;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .checkmark {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 4px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 1.5rem auto;
+    }
+
+    .checkmark svg {
+      width: 40px;
+      height: 40px;
+      stroke: var(--primary);
+      stroke-width: 4;
+      fill: none;
+    }
+  </style>
+</head>
+
+<body>
+<div class="kiosk-wrap">
+
+  <!-- START -->
+  <div class="card" id="start-screen">
+    <img class="logo" src="your-logo.png" />
+    <h2>Partner Registration</h2>
+    <p class="sub">Register your name and phone number.</p>
+    <button onclick="begin()">Click to Begin</button>
+  </div>
+
+  <!-- NAME -->
+  <div class="card hidden" id="name-screen">
+    <img class="logo" src="your-logo.png" />
+    <h2>Your Name</h2>
+    <input id="name" />
+    <div class="row">
+      <button class="secondary" onclick="goBack()">Back</button>
+      <button onclick="nextFromName()">Next</button>
+    </div>
+  </div>
+
+  <!-- PHONE -->
+  <div class="card hidden" id="phone-screen">
+    <img class="logo" src="your-logo.png" />
+    <h2>Phone Number</h2>
+    <input id="phone" />
+    <div class="row">
+      <button class="secondary" onclick="goBack()">Back</button>
+      <button onclick="submitForm()">Submit</button>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div class="card hidden" id="loading-screen">
+    <img class="logo" src="your-logo.png" />
+    <div id="loading-content"></div>
+  </div>
+
+  <!-- CONFIRM -->
+  <div class="card hidden" id="confirmation-screen">
+    <img class="logo" src="your-logo.png" />
+    <div class="checkmark">
+      <svg viewBox="0 0 24 24">
+        <polyline points="4 12 10 17 20 7" />
+      </svg>
+    </div>
+    <h2>Confirmed</h2>
+  </div>
+
+</div>
+
+<script>
+const STATUS_ENDPOINT = "https://zwfucjsugrbjmcwhhcnj.supabase.co/functions/v1/status";
+const steps = ["start-screen","name-screen","phone-screen","loading-screen","confirmation-screen"];
+let step = 0;
+
+function showStep(i) {
+  document.getElementById(steps[step]).classList.add("hidden");
+  step = i;
+  document.getElementById(steps[step]).classList.remove("hidden");
+}
+
+function begin(){ showStep(1); }
+function goBack(){ if(step>0) showStep(step-1); }
+function nextFromName(){ showStep(2); }
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+async function postStatus(val){
+  await fetch(STATUS_ENDPOINT,{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ status: val })
+  });
+}
+
+async function submitForm(){
+  showStep(3);
+
+  const box = document.getElementById("loading-content");
+
+  /* Partner pulse */
+  box.innerHTML = `
+    <div class="arrow">→</div>
+    <div class="wait-text">Please wait for confirmation</div>
+  `;
+
+  await postStatus("partner");
+  await sleep(3000);
+  await postStatus("yes");
+
+  showStep(4);
+
+  setTimeout(()=>{
+    document.getElementById("name").value="";
+    document.getElementById("phone").value="";
+    showStep(0);
+  },4000);
+}
+</script>
+</body>
+</html>
