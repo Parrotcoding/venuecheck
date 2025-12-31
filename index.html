@@ -39,7 +39,10 @@
       z-index: 9999;
       padding: 2rem;
     }
-    #lock-screen.hidden { display: none; }
+
+    #lock-screen.hidden {
+      display: none;
+    }
 
     .lock-inner {
       background: var(--card);
@@ -111,11 +114,6 @@
       margin-top: 1rem;
     }
 
-    button:disabled, input:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
     .spinner {
       border: 6px solid #eee;
       border-top: 6px solid var(--primary);
@@ -170,21 +168,22 @@
 
   <!-- KIOSK -->
   <div class="kiosk-wrap">
+
     <div class="card" id="start-screen">
       <img class="logo" src="your-logo.png" alt="Concert Logo" />
-      <button id="begin-btn" onclick="begin()">Click to Begin</button>
+      <button onclick="begin()">Click to Begin</button>
     </div>
 
     <div class="card hidden" id="name-screen">
       <h2>Enter your name</h2>
       <input type="text" id="name" />
-      <button id="name-next-btn" onclick="nextStep()">Next</button>
+      <button onclick="nextStep()">Next</button>
     </div>
 
     <div class="card hidden" id="phone-screen">
       <h2>Your registered phone number</h2>
       <input type="tel" id="phone" />
-      <button id="submit-btn" onclick="startLoading()">Submit</button>
+      <button onclick="startLoading()">Submit</button>
     </div>
 
     <div class="card hidden" id="loading-screen">
@@ -198,58 +197,29 @@
           <polyline points="4 12 10 17 20 7" />
         </svg>
       </div>
-      <div class="welcome" id="confirmation-message">Welcome to the concert!</div>
+      <div class="welcome">Welcome to the concert!</div>
     </div>
+
+    <!-- ✅ PARTNER VERIFIED SCREEN -->
+    <div class="card hidden" id="partner-screen">
+      <div class="checkmark">
+        <svg viewBox="0 0 24 24">
+          <polyline points="4 12 10 17 20 7" />
+        </svg>
+      </div>
+      <div class="welcome">Registration Verified!</div>
+    </div>
+
   </div>
 
   <script>
     const LOCK_URL = "https://zwfucjsugrbjmcwhhcnj.supabase.co/functions/v1/status";
     const lockScreen = document.getElementById("lock-screen");
 
-    // ✅ Put your partner-check edge function endpoint here.
-    // It should return plain text like: "partner" (case-insensitive)
-    // Example: https://.../functions/v1/check_access
-    const EDGE_URL = "https://your-edge-function-url";
-
-    const screens = ["start-screen","name-screen","phone-screen","loading-screen","confirmation-screen"];
-
-    const messages = [
-      "Communicating with database...",
-      "Finding name...",
-      "Checking access level...",
-      "Finalizing credentials...",
-      "Access granted."
-    ];
-
-    let step = 0;
-    let isBusy = false;
-
-    function showScreen(id) {
-      screens.forEach(s => document.getElementById(s).classList.add("hidden"));
-      document.getElementById(id).classList.remove("hidden");
+    function hideAllCards() {
+      document.querySelectorAll(".kiosk-wrap .card").forEach(c => c.classList.add("hidden"));
     }
 
-    function setFormEnabled(enabled) {
-      document.getElementById("begin-btn").disabled = !enabled;
-      document.getElementById("name-next-btn").disabled = !enabled;
-      document.getElementById("submit-btn").disabled = !enabled;
-      document.getElementById("name").disabled = !enabled;
-      document.getElementById("phone").disabled = !enabled;
-    }
-
-    function resetToNormalState() {
-      // "Normal state" = ready for the next person
-      isBusy = false;
-      step = 0;
-      document.getElementById("name").value = "";
-      document.getElementById("phone").value = "";
-      document.getElementById("confirmation-message").textContent = "Welcome to the concert!";
-      document.getElementById("status-message").textContent = "Checking access...";
-      setFormEnabled(true);
-      showScreen("start-screen");
-    }
-
-    /* === LOCK CHECK === */
     async function checkLock() {
       try {
         const res = await fetch(`${LOCK_URL}?t=${Date.now()}`, { cache: "no-store" });
@@ -257,11 +227,24 @@
 
         if (text === "yes") {
           lockScreen.classList.remove("hidden");
-        } else {
+          hideAllCards();
+        } 
+        else if (text === "partner") {
           lockScreen.classList.add("hidden");
+          hideAllCards();
+          document.getElementById("partner-screen").classList.remove("hidden");
+        } 
+        else {
+          lockScreen.classList.add("hidden");
+
+          // If currently on partner screen, reset kiosk
+          if (!document.getElementById("partner-screen").classList.contains("hidden")) {
+            hideAllCards();
+            step = 0;
+            document.getElementById("start-screen").classList.remove("hidden");
+          }
         }
       } catch (err) {
-        // If lock check fails, keep it locked for safety.
         lockScreen.classList.remove("hidden");
         console.error("Lock check failed:", err);
       }
@@ -271,85 +254,58 @@
     setInterval(checkLock, 2000);
 
     /* === Kiosk Flow === */
+    let step = 0;
+    const steps = [
+      "start-screen",
+      "name-screen",
+      "phone-screen",
+      "loading-screen",
+      "confirmation-screen"
+    ];
+
+    const messages = [
+      "Communicating with database...",
+      "Finding name...",
+      "Checking access level...",
+      "Finalizing credentials...",
+      "Access granted."
+    ];
+
     function begin() {
-      if (isBusy) return;
-      step = 1;
-      showScreen("name-screen");
+      nextStep();
     }
 
     function nextStep() {
-      if (isBusy) return;
-
-      // basic step advance
-      step = Math.min(step + 1, 4);
-      showScreen(screens[step]);
+      document.getElementById(steps[step]).classList.add("hidden");
+      step++;
+      document.getElementById(steps[step]).classList.remove("hidden");
     }
 
-    // Helper: fetch with a timeout so the UI doesn't “hang”
-    async function fetchTextWithTimeout(url, ms = 2000) {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), ms);
-      try {
-        const res = await fetch(url, { cache: "no-store", signal: controller.signal });
-        return (await res.text()).trim().toLowerCase();
-      } finally {
-        clearTimeout(t);
-      }
-    }
-
-    async function startLoading() {
-      if (isBusy) return;
-      isBusy = true;
-
-      // Immediately go to loading UI (so you SEE something right away)
-      step = 3;
-      showScreen("loading-screen");
-      setFormEnabled(false);
+    function startLoading() {
+      nextStep();
 
       const status = document.getElementById("status-message");
-      const confirmationMessage = document.getElementById("confirmation-message");
-
-      // Kick off the edge call in parallel while the spinner messages run
-      const name = encodeURIComponent(document.getElementById("name").value || "");
-      const phone = encodeURIComponent(document.getElementById("phone").value || "");
-      const edgePromise = fetchTextWithTimeout(`${EDGE_URL}?name=${name}&phone=${phone}&t=${Date.now()}`, 2500)
-        .catch(err => {
-          console.error("Edge request failed:", err);
-          return ""; // fallback
-        });
-
       let i = 0;
+
       const interval = setInterval(() => {
         if (i < messages.length) {
           status.textContent = messages[i++];
         } else {
           clearInterval(interval);
-          finish(edgePromise);
+
+          document.getElementById("loading-screen").classList.add("hidden");
+          document.getElementById("confirmation-screen").classList.remove("hidden");
+
+          setTimeout(() => {
+            document.getElementById("confirmation-screen").classList.add("hidden");
+            step = 0;
+            document.getElementById("name").value = "";
+            document.getElementById("phone").value = "";
+            document.getElementById("start-screen").classList.remove("hidden");
+          }, 4000);
         }
-      }, 450); // faster so confirmation appears quicker
+      }, 900);
     }
-
-    async function finish(edgePromise) {
-      const accessLevel = await edgePromise;
-
-      // ✅ Ensure the checkmark view shows
-      step = 4;
-      showScreen("confirmation-screen");
-
-      if (accessLevel === "partner") {
-        confirmationMessage.textContent = "Your registration was sucessful";
-      } else {
-        confirmationMessage.textContent = "Welcome to the concert!";
-      }
-
-      // ✅ Return to normal (re-enabled) state after 2–3 seconds
-      setTimeout(() => {
-        resetToNormalState();
-      }, 2500);
-    }
-
-    // Start in normal state
-    resetToNormalState();
   </script>
 
 </body>
