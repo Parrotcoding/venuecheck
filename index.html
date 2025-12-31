@@ -158,7 +158,7 @@
 <body>
 
   <!-- LOCK SCREEN -->
-  <div id="lock-screen">
+  <div id="lock-screen" class="hidden">
     <div class="lock-inner">
       <img class="logo" src="your-logo.png" alt="Concert Logo" />
       <div class="locked-title">Please Wait</div>
@@ -212,163 +212,67 @@
 
   </div>
 
-<script>
-  const LOCK_URL = "https://zwfucjsugrbjmcwhhcnj.supabase.co/functions/v1/status";
-  const lockScreen = document.getElementById("lock-screen");
+  <script>
+    const LOCK_URL = "https://zwfucjsugrbjmcwhhcnj.supabase.co/functions/v1/status";
+    const lockScreen = document.getElementById("lock-screen");
 
-  // --- OVERRIDE STATE ---
-  // null = normal kiosk
-  // "locked" = lock overlay active
-  // "partner" = show partner verified view
-  let overrideMode = null;
+    const SCREENS = [
+      "start-screen",
+      "name-screen",
+      "phone-screen",
+      "loading-screen",
+      "confirmation-screen",
+      "partner-screen"
+    ];
 
-  // Keep handles so we can cancel them when override kicks in
-  let loadingIntervalHandle = null;
-  let confirmationTimeoutHandle = null;
-
-  function hideAllCards() {
-    document.querySelectorAll(".kiosk-wrap .card").forEach(c => c.classList.add("hidden"));
-  }
-
-  function showCard(id) {
-    hideAllCards();
-    document.getElementById(id).classList.remove("hidden");
-  }
-
-  function stopKioskTimers() {
-    if (loadingIntervalHandle) {
-      clearInterval(loadingIntervalHandle);
-      loadingIntervalHandle = null;
+    function showOnly(screenId) {
+      SCREENS.forEach(id => document.getElementById(id).classList.add("hidden"));
+      document.getElementById(screenId).classList.remove("hidden");
     }
-    if (confirmationTimeoutHandle) {
-      clearTimeout(confirmationTimeoutHandle);
-      confirmationTimeoutHandle = null;
-    }
-  }
 
-  function resetKioskToStart() {
-    stopKioskTimers();
-    step = 0;
-    document.getElementById("name").value = "";
-    document.getElementById("phone").value = "";
-    showCard("start-screen");
-  }
+    async function checkLock() {
+      try {
+        const res = await fetch(`${LOCK_URL}?t=${Date.now()}`, { cache: "no-store" });
+        const text = (await res.text()).trim().toLowerCase();
 
-  async function checkLock() {
-    try {
-      const res = await fetch(`${LOCK_URL}?t=${Date.now()}`, { cache: "no-store" });
-      const text = (await res.text()).trim().toLowerCase();
+        if (text === "yes") {
+          // Locked overlay ON; kiosk can remain as-is behind it
+          lockScreen.classList.remove("hidden");
+          return;
+        }
 
-      if (text === "yes") {
-        // LOCKED
-        overrideMode = "locked";
-        lockScreen.classList.remove("hidden");
-        stopKioskTimers(); // stop anything that would flip screens
-        // (No need to hide cards; lock overlay covers everything)
-        return;
-      }
-
-      if (text === "partner") {
-        // PARTNER VERIFIED
-        overrideMode = "partner";
+        // Not locked
         lockScreen.classList.add("hidden");
-        stopKioskTimers();      // ✅ prevents loading flow from overriding UI
-        showCard("partner-screen");
-        return;
-      }
 
-      // NORMAL KIOSK
-      lockScreen.classList.add("hidden");
-
-      // If we were in an override mode and now we’re not, reset cleanly
-      if (overrideMode !== null) {
-        overrideMode = null;
-        resetKioskToStart();
+        if (text === "partner") {
+          // ✅ Immediately force partner verified screen
+          showOnly("partner-screen");
+        } else {
+          // Normal/default screen (choose what you want here)
+          showOnly("start-screen");
+        }
+      } catch (err) {
+        // Fail closed: show lock
+        lockScreen.classList.remove("hidden");
+        console.error("Lock check failed:", err);
       }
-    } catch (err) {
-      // Fail closed: show lock
-      overrideMode = "locked";
-      lockScreen.classList.remove("hidden");
-      console.error("Lock check failed:", err);
     }
-  }
 
-  checkLock();
-  setInterval(checkLock, 2000);
+    checkLock();
+    setInterval(checkLock, 2000);
 
-  /* === Kiosk Flow === */
-  let step = 0;
-  const steps = [
-    "start-screen",
-    "name-screen",
-    "phone-screen",
-    "loading-screen",
-    "confirmation-screen"
-  ];
+    /* --- Optional: keep these for manual testing, but polling will override UI --- */
+    let step = 0;
+    const steps = ["start-screen", "name-screen", "phone-screen", "loading-screen", "confirmation-screen"];
 
-  const messages = [
-    "Communicating with database...",
-    "Finding name...",
-    "Checking access level...",
-    "Finalizing credentials...",
-    "Access granted."
-  ];
-
-  function begin() {
-    nextStep();
-  }
-
-  function nextStep() {
-    // Don't allow navigating if an override (locked/partner) is active
-    if (overrideMode) return;
-
-    document.getElementById(steps[step]).classList.add("hidden");
-    step++;
-    document.getElementById(steps[step]).classList.remove("hidden");
-  }
-
-  function startLoading() {
-    if (overrideMode) return;
-
-    nextStep();
-
-    const status = document.getElementById("status-message");
-    let i = 0;
-
-    // Save handle globally so we can clear it when partner/lock arrives
-    loadingIntervalHandle = setInterval(() => {
-      // If an override becomes active mid-load, abort immediately
-      if (overrideMode) {
-        stopKioskTimers();
-        return;
-      }
-
-      if (i < messages.length) {
-        status.textContent = messages[i++];
-      } else {
-        clearInterval(loadingIntervalHandle);
-        loadingIntervalHandle = null;
-
-        // If override kicked in right as we finished, don't show confirmation
-        if (overrideMode) return;
-
-        document.getElementById("loading-screen").classList.add("hidden");
-        document.getElementById("confirmation-screen").classList.remove("hidden");
-
-        confirmationTimeoutHandle = setTimeout(() => {
-          if (overrideMode) return;
-
-          document.getElementById("confirmation-screen").classList.add("hidden");
-          step = 0;
-          document.getElementById("name").value = "";
-          document.getElementById("phone").value = "";
-          document.getElementById("start-screen").classList.remove("hidden");
-          confirmationTimeoutHandle = null;
-        }, 4000);
-      }
-    }, 900);
-  }
-</script>
+    function begin() { nextStep(); }
+    function nextStep() {
+      document.getElementById(steps[step]).classList.add("hidden");
+      step = Math.min(step + 1, steps.length - 1);
+      document.getElementById(steps[step]).classList.remove("hidden");
+    }
+    function startLoading() { showOnly("loading-screen"); }
+  </script>
 
 </body>
 </html>
