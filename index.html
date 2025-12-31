@@ -40,6 +40,11 @@
       padding: 2rem;
     }
 
+    /* ✅ CRITICAL FIX */
+    #lock-screen.hidden {
+      display: none;
+    }
+
     .lock-inner {
       background: var(--card);
       padding: 2.5rem;
@@ -202,7 +207,7 @@
 
     async function checkLock() {
       try {
-        const res = await fetch(LOCK_URL, { cache: "no-store" });
+        const res = await fetch(`${LOCK_URL}?t=${Date.now()}`, { cache: "no-store" });
         const text = (await res.text()).trim().toLowerCase();
 
         if (text === "yes") {
@@ -211,13 +216,11 @@
           lockScreen.classList.add("hidden");
         }
       } catch (err) {
-        // Fail-safe: keep locked if network breaks
         lockScreen.classList.remove("hidden");
         console.error("Lock check failed:", err);
       }
     }
 
-    // Poll every 5 seconds
     checkLock();
     setInterval(checkLock, 2000);
 
