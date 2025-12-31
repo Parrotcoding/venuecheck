@@ -4,7 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Concert Entry Kiosk</title>
+
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
   <style>
     :root {
       --bg: #f0f4f8;
@@ -24,9 +26,7 @@
       margin: 0;
       padding: 0;
       background: var(--bg);
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
+      min-height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -143,7 +143,9 @@
     }
   </style>
 </head>
+
 <body>
+
   <div class="card" id="start-screen">
     <img class="logo" src="your-logo.png" alt="Concert Logo" />
     <button onclick="begin()">Click to Begin</button>
@@ -168,14 +170,23 @@
 
   <div class="card hidden" id="confirmation-screen">
     <div class="checkmark">
-      <svg viewBox="0 0 24 24"><polyline points="4 12 10 17 20 7" /></svg>
+      <svg viewBox="0 0 24 24">
+        <polyline points="4 12 10 17 20 7" />
+      </svg>
     </div>
     <div class="welcome">Welcome to the concert!</div>
   </div>
 
   <script>
     let step = 0;
-    const steps = ["start-screen", "name-screen", "phone-screen", "loading-screen", "confirmation-screen"];
+    const steps = [
+      "start-screen",
+      "name-screen",
+      "phone-screen",
+      "loading-screen",
+      "confirmation-screen"
+    ];
+
     const messages = [
       "Communicating with database...",
       "Finding name...",
@@ -185,7 +196,6 @@
     ];
 
     function begin() {
-      enterFullscreen();
       nextStep();
     }
 
@@ -196,7 +206,8 @@
     }
 
     function startLoading() {
-      nextStep(); // go to loading-screen
+      nextStep();
+
       const status = document.getElementById("status-message");
       let i = 0;
 
@@ -205,30 +216,21 @@
           status.textContent = messages[i++];
         } else {
           clearInterval(interval);
+
           document.getElementById("loading-screen").classList.add("hidden");
           document.getElementById("confirmation-screen").classList.remove("hidden");
 
           setTimeout(() => {
             document.getElementById("confirmation-screen").classList.add("hidden");
             step = 0;
-            document.getElementById("name").value = '';
-            document.getElementById("phone").value = '';
+            document.getElementById("name").value = "";
+            document.getElementById("phone").value = "";
             document.getElementById("start-screen").classList.remove("hidden");
           }, 4000);
         }
       }, 900);
     }
-
-    function enterFullscreen() {
-      const docEl = document.documentElement;
-      if (docEl.requestFullscreen) {
-        docEl.requestFullscreen();
-      } else if (docEl.webkitRequestFullscreen) {
-        docEl.webkitRequestFullscreen();
-      } else if (docEl.msRequestFullscreen) {
-        docEl.msRequestFullscreen();
-      }
-    }
   </script>
+
 </body>
 </html>
