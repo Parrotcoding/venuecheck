@@ -197,13 +197,16 @@
           <polyline points="4 12 10 17 20 7" />
         </svg>
       </div>
-      <div class="welcome">Welcome to the concert!</div>
+      <div class="welcome" id="confirmation-message">Welcome to the concert!</div>
     </div>
   </div>
 
   <script>
     const LOCK_URL = "https://zwfucjsugrbjmcwhhcnj.supabase.co/functions/v1/status";
     const lockScreen = document.getElementById("lock-screen");
+
+    // 🔹 Put your edge function endpoint here (must return plain text like: "partner" or something else)
+    const EDGE_URL = "https://your-edge-function-url";
 
     async function checkLock() {
       try {
@@ -252,10 +255,38 @@
       document.getElementById(steps[step]).classList.remove("hidden");
     }
 
-    function startLoading() {
+    function resetKiosk() {
+      // Hide all screens
+      steps.forEach(id => document.getElementById(id).classList.add("hidden"));
+
+      // Clear inputs
+      document.getElementById("name").value = "";
+      document.getElementById("phone").value = "";
+
+      // Reset step and show start
+      step = 0;
+      document.getElementById("start-screen").classList.remove("hidden");
+
+      // Reset confirmation message back to default
+      document.getElementById("confirmation-message").textContent = "Welcome to the concert!";
+    }
+
+    async function startLoading() {
       nextStep();
 
       const status = document.getElementById("status-message");
+      const confirmationMessage = document.getElementById("confirmation-message");
+
+      // default if edge call fails or returns something else
+      let accessLevel = "";
+
+      try {
+        const res = await fetch(`${EDGE_URL}?t=${Date.now()}`, { cache: "no-store" });
+        accessLevel = (await res.text()).trim().toLowerCase();
+      } catch (err) {
+        console.error("Edge request failed:", err);
+      }
+
       let i = 0;
 
       const interval = setInterval(() => {
@@ -267,13 +298,18 @@
           document.getElementById("loading-screen").classList.add("hidden");
           document.getElementById("confirmation-screen").classList.remove("hidden");
 
+          // ✅ partner check
+          if (accessLevel === "partner") {
+            // (keeping your checkmark UI; just change the text)
+            confirmationMessage.textContent = "Your registration was sucessful";
+          } else {
+            confirmationMessage.textContent = "Welcome to the concert!";
+          }
+
+          // ✅ Return to normal state after 2–3 seconds (using 2500ms)
           setTimeout(() => {
-            document.getElementById("confirmation-screen").classList.add("hidden");
-            step = 0;
-            document.getElementById("name").value = "";
-            document.getElementById("phone").value = "";
-            document.getElementById("start-screen").classList.remove("hidden");
-          }, 4000);
+            resetKiosk();
+          }, 2500);
         }
       }, 900);
     }
