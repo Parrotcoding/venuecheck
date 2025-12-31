@@ -86,7 +86,7 @@
 
     .hidden { display: none; }
 
-    /* === Your original kiosk card styling === */
+    /* === Kiosk card styling === */
     .kiosk-wrap {
       min-height: 100vh;
       display: flex;
@@ -207,7 +207,7 @@
     </div>
   </div>
 
-  <!-- NORMAL KIOSK UI (hidden behind lock screen until 4pm) -->
+  <!-- NORMAL KIOSK UI -->
   <div class="kiosk-wrap">
     <div class="card" id="start-screen">
       <img class="logo" src="your-logo.png" alt="Concert Logo" />
@@ -242,38 +242,61 @@
   </div>
 
   <script>
-    /* ========= Lock logic: countdown to 4:00 PM daily ========= */
+    /* ========= Lock logic: unlock at 4:00 PM, re-lock after midnight ========= */
     const lockScreen = document.getElementById("lock-screen");
     const countdownEl = document.getElementById("countdown");
     const countdownLabelEl = document.getElementById("countdown-label");
-
-    function getNextFourPM(now) {
-      // 4:00 PM today
-      const fourPM = new Date(now);
-      fourPM.setHours(16, 0, 0, 0);
-
-      // If it's already past 4pm, unlock (today). If it's after midnight next day, this will be recomputed.
-      return fourPM;
-    }
 
     function pad2(n) {
       return String(n).padStart(2, "0");
     }
 
+    function todayAt(hours, minutes, seconds = 0, ms = 0) {
+      const d = new Date();
+      d.setHours(hours, minutes, seconds, ms);
+      return d;
+    }
+
+    function startOfTomorrow() {
+      const d = new Date();
+      d.setHours(24, 0, 0, 0); // midnight next day
+      return d;
+    }
+
+    function isUnlockedNow(now = new Date()) {
+      // Unlocked from 4:00 PM until midnight
+      const openTime = new Date(now);
+      openTime.setHours(16, 0, 0, 0);
+
+      const midnight = new Date(now);
+      midnight.setHours(24, 0, 0, 0);
+
+      return now >= openTime && now < midnight;
+    }
+
+    function nextOpenTime(now = new Date()) {
+      // Next upcoming 4:00 PM (today if before 4pm, otherwise tomorrow)
+      const open = new Date(now);
+      open.setHours(16, 0, 0, 0);
+      if (now < open) return open;
+
+      open.setDate(open.getDate() + 1);
+      return open;
+    }
+
     function updateLockState() {
       const now = new Date();
-      const fourPM = getNextFourPM(now);
 
-      if (now >= fourPM) {
-        // Unlocked for the rest of the day (until midnight logic kicks in below)
+      if (isUnlockedNow(now)) {
         lockScreen.classList.add("hidden");
         return;
       }
 
-      // Locked: show countdown
       lockScreen.classList.remove("hidden");
 
-      const diffMs = fourPM - now;
+      const target = nextOpenTime(now);
+      const diffMs = target - now;
+
       const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
       const hours = Math.floor(totalSeconds / 3600);
       const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -283,15 +306,11 @@
       countdownLabelEl.textContent = "Time remaining until 4:00 PM";
     }
 
-    // Re-lock after midnight (so it works if kiosk stays on overnight)
+    // Hard refresh lock state at midnight to guarantee re-locking behavior
     function scheduleMidnightRefresh() {
       const now = new Date();
-      const nextMidnight = new Date(now);
-      nextMidnight.setHours(24, 0, 0, 0);
-      const msUntilMidnight = nextMidnight - now;
-
+      const msUntilMidnight = startOfTomorrow() - now;
       setTimeout(() => {
-        // At midnight, lockScreen may need to reappear until 4pm again
         updateLockState();
         scheduleMidnightRefresh();
       }, msUntilMidnight + 50);
@@ -301,7 +320,7 @@
     setInterval(updateLockState, 1000);
     scheduleMidnightRefresh();
 
-    /* ========= Your existing kiosk flow ========= */
+    /* ========= Kiosk flow ========= */
     let step = 0;
     const steps = [
       "start-screen",
