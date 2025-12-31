@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Partner Registration Kiosk</title>
+  <title>Register</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
 
@@ -54,8 +54,14 @@
       display: block;
     }
 
-    h2 { margin-bottom: 0.75rem; color: var(--text); }
-    .sub { color: #666; margin-bottom: 1.25rem; }
+    h2 { margin: 0 0 0.75rem; color: var(--text); }
+
+    .sub {
+      margin: 0 0 1.25rem;
+      color: #666;
+      font-size: 0.98rem;
+      line-height: 1.35;
+    }
 
     input {
       width: 100%;
@@ -64,184 +70,251 @@
       border: 2px solid #ccc;
       border-radius: var(--pill-radius);
       font-size: 1rem;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(124, 77, 255, 0.12);
     }
 
     button {
       width: 100%;
-      padding: 0.75rem;
+      padding: 0.75rem 1.5rem;
       border: none;
       border-radius: var(--pill-radius);
       background: var(--primary);
       color: white;
       font-weight: 700;
+      font-size: 1rem;
       cursor: pointer;
       margin-top: 1rem;
     }
+
+    button:hover { filter: brightness(0.95); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .row {
       display: flex;
       gap: 0.75rem;
       margin-top: 1rem;
     }
+    .row button { margin-top: 0; width: 100%; }
 
     .secondary {
       background: #e9e5ff;
       color: #3b2fb9;
+      font-weight: 700;
     }
 
-    /* === WAIT STATE === */
+    /* === WAIT STATE (3s partner pulse) === */
     .arrow {
       font-size: 5rem;
       font-weight: 700;
       color: var(--primary);
-      margin: 1.5rem 0 0.5rem;
-      animation: pulse 1.2s ease-in-out infinite;
+      margin: 1.25rem 0 0.25rem;
+      animation: nudge 1.1s ease-in-out infinite;
+      line-height: 1;
     }
 
-    @keyframes pulse {
-      0%, 100% { transform: translateX(0); }
-      50% { transform: translateX(12px); }
+    @keyframes nudge {
+      0%, 100% { transform: translateX(0); opacity: 0.95; }
+      50% { transform: translateX(14px); opacity: 1; }
     }
 
     .wait-text {
       font-size: 1.1rem;
-      font-weight: 600;
+      font-weight: 700;
       color: var(--text);
+      margin-top: 0.5rem;
     }
 
-    .spinner {
-      border: 6px solid #eee;
-      border-top: 6px solid var(--primary);
-      border-radius: 50%;
-      width: 60px;
-      height: 60px;
-      margin: 2rem auto 1rem;
-      animation: spin 1s linear infinite;
+    .tiny {
+      color: #666;
+      font-size: 0.95rem;
+      margin-top: 0.6rem;
+      line-height: 1.35;
+      word-break: break-word;
     }
 
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .checkmark {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      border: 4px solid var(--primary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 1.5rem auto;
-    }
-
-    .checkmark svg {
-      width: 40px;
-      height: 40px;
-      stroke: var(--primary);
-      stroke-width: 4;
-      fill: none;
+    .error {
+      margin-top: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: #fff1f2;
+      border: 1px solid #fecdd3;
+      color: #9f1239;
+      border-radius: 16px;
+      text-align: left;
+      font-size: 0.95rem;
     }
   </style>
 </head>
 
 <body>
-<div class="kiosk-wrap">
+  <div class="kiosk-wrap">
 
-  <!-- START -->
-  <div class="card" id="start-screen">
-    <img class="logo" src="your-logo.png" />
-    <h2>Partner Registration</h2>
-    <p class="sub">Register your name and phone number.</p>
-    <button onclick="begin()">Click to Begin</button>
-  </div>
-
-  <!-- NAME -->
-  <div class="card hidden" id="name-screen">
-    <img class="logo" src="your-logo.png" />
-    <h2>Your Name</h2>
-    <input id="name" />
-    <div class="row">
-      <button class="secondary" onclick="goBack()">Back</button>
-      <button onclick="nextFromName()">Next</button>
+    <!-- START -->
+    <div class="card" id="start-screen">
+      <img class="logo" src="your-logo.png" alt="Logo" />
+      <h2>Register</h2>
+      <p class="sub">Enter your name and phone number.</p>
+      <button onclick="begin()">Click to Begin</button>
     </div>
-  </div>
 
-  <!-- PHONE -->
-  <div class="card hidden" id="phone-screen">
-    <img class="logo" src="your-logo.png" />
-    <h2>Phone Number</h2>
-    <input id="phone" />
-    <div class="row">
-      <button class="secondary" onclick="goBack()">Back</button>
-      <button onclick="submitForm()">Submit</button>
+    <!-- NAME -->
+    <div class="card hidden" id="name-screen">
+      <img class="logo" src="your-logo.png" alt="Logo" />
+      <h2>Enter your name</h2>
+      <p class="sub">Use your full name as it appears on your registration.</p>
+      <input type="text" id="name" placeholder="e.g., Jordan Lee" autocomplete="name" />
+      <div class="row">
+        <button class="secondary" onclick="goBack()">Back</button>
+        <button onclick="nextFromName()">Next</button>
+      </div>
+      <div id="name-error" class="error hidden"></div>
     </div>
-  </div>
 
-  <!-- LOADING -->
-  <div class="card hidden" id="loading-screen">
-    <img class="logo" src="your-logo.png" />
-    <div id="loading-content"></div>
-  </div>
-
-  <!-- CONFIRM -->
-  <div class="card hidden" id="confirmation-screen">
-    <img class="logo" src="your-logo.png" />
-    <div class="checkmark">
-      <svg viewBox="0 0 24 24">
-        <polyline points="4 12 10 17 20 7" />
-      </svg>
+    <!-- PHONE -->
+    <div class="card hidden" id="phone-screen">
+      <img class="logo" src="your-logo.png" alt="Logo" />
+      <h2>Your registered phone number</h2>
+      <p class="sub">We’ll use this to confirm your registration.</p>
+      <input type="tel" id="phone" placeholder="e.g., (555) 123-4567" autocomplete="tel" inputmode="tel" />
+      <div class="row">
+        <button class="secondary" onclick="goBack()">Back</button>
+        <button onclick="submitForm()">Submit</button>
+      </div>
+      <div id="phone-error" class="error hidden"></div>
     </div>
-    <h2>Confirmed</h2>
+
+    <!-- WAIT / LOADING (3 seconds) -->
+    <div class="card hidden" id="loading-screen">
+      <img class="logo" src="your-logo.png" alt="Logo" />
+      <div class="arrow">→</div>
+      <div class="wait-text">Please wait for confirmation</div>
+      <div id="loading-details" class="tiny"></div>
+      <div id="loading-error" class="error hidden"></div>
+    </div>
+
   </div>
 
-</div>
+  <script>
+    const STATUS_ENDPOINT = "https://zwfucjsugrbjmcwhhcnj.supabase.co/functions/v1/status";
 
-<script>
-const STATUS_ENDPOINT = "https://zwfucjsugrbjmcwhhcnj.supabase.co/functions/v1/status";
-const steps = ["start-screen","name-screen","phone-screen","loading-screen","confirmation-screen"];
-let step = 0;
+    let step = 0;
+    const steps = ["start-screen", "name-screen", "phone-screen", "loading-screen"];
 
-function showStep(i) {
-  document.getElementById(steps[step]).classList.add("hidden");
-  step = i;
-  document.getElementById(steps[step]).classList.remove("hidden");
-}
+    function showStep(nextIdx) {
+      document.getElementById(steps[step]).classList.add("hidden");
+      step = nextIdx;
+      document.getElementById(steps[step]).classList.remove("hidden");
+    }
 
-function begin(){ showStep(1); }
-function goBack(){ if(step>0) showStep(step-1); }
-function nextFromName(){ showStep(2); }
+    function begin() {
+      showStep(1);
+      document.getElementById("name").focus();
+    }
 
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+    function goBack() {
+      if (step > 0) showStep(step - 1);
+    }
 
-async function postStatus(val){
-  await fetch(STATUS_ENDPOINT,{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ status: val })
-  });
-}
+    function setError(id, msg) {
+      const el = document.getElementById(id);
+      if (!msg) {
+        el.textContent = "";
+        el.classList.add("hidden");
+      } else {
+        el.textContent = msg;
+        el.classList.remove("hidden");
+      }
+    }
 
-async function submitForm(){
-  showStep(3);
+    function nextFromName() {
+      setError("name-error", "");
+      const name = document.getElementById("name").value.trim();
+      if (name.length < 2) {
+        setError("name-error", "Please enter your full name.");
+        return;
+      }
+      showStep(2);
+      document.getElementById("phone").focus();
+    }
 
-  const box = document.getElementById("loading-content");
+    function normalizePhone(raw) {
+      const digits = (raw || "").replace(/\D/g, "");
+      if (digits.length === 11 && digits.startsWith("1")) return digits.slice(1);
+      if (digits.length === 10) return digits;
+      return null;
+    }
 
-  /* Partner pulse */
-  box.innerHTML = `
-    <div class="arrow">→</div>
-    <div class="wait-text">Please wait for confirmation</div>
-  `;
+    function formatPhone10(d) {
+      return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
+    }
 
-  await postStatus("partner");
-  await sleep(3000);
-  await postStatus("yes");
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
-  showStep(4);
+    async function postStatus(statusValue) {
+      const res = await fetch(STATUS_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: statusValue })
+      });
 
-  setTimeout(()=>{
-    document.getElementById("name").value="";
-    document.getElementById("phone").value="";
-    showStep(0);
-  },4000);
-}
-</script>
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Status update failed (${res.status}): ${text || res.statusText}`);
+      }
+      return (await res.text().catch(() => "")).trim();
+    }
+
+    async function submitForm() {
+      setError("phone-error", "");
+      setError("loading-error", "");
+
+      const name = document.getElementById("name").value.trim();
+      const phoneDigits = normalizePhone(document.getElementById("phone").value.trim());
+
+      if (!phoneDigits) {
+        setError("phone-error", "Please enter a valid 10-digit phone number.");
+        return;
+      }
+
+      // Show wait screen
+      showStep(3);
+      document.getElementById("loading-details").textContent = `${name} • ${formatPhone10(phoneDigits)}`;
+
+      try {
+        // 1) Set status to "partner"
+        await postStatus("partner");
+
+        // 2) Keep it for 3 seconds (wait UI is displayed)
+        await sleep(3000);
+
+        // 3) Set status back to "yes"
+        await postStatus("yes");
+
+        // 4) Immediately return to beginning
+        document.getElementById("name").value = "";
+        document.getElementById("phone").value = "";
+        showStep(0);
+
+      } catch (err) {
+        // Show error on wait screen, then bounce back to phone screen for retry
+        setError("loading-error", err.message || String(err));
+        await sleep(1200);
+        showStep(2);
+      }
+    }
+
+    // Enter key support
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      if (step === 1) nextFromName();
+      else if (step === 2) submitForm();
+    });
+  </script>
 </body>
 </html>
