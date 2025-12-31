@@ -212,101 +212,163 @@
 
   </div>
 
-  <script>
-    const LOCK_URL = "https://zwfucjsugrbjmcwhhcnj.supabase.co/functions/v1/status";
-    const lockScreen = document.getElementById("lock-screen");
+<script>
+  const LOCK_URL = "https://zwfucjsugrbjmcwhhcnj.supabase.co/functions/v1/status";
+  const lockScreen = document.getElementById("lock-screen");
 
-    function hideAllCards() {
-      document.querySelectorAll(".kiosk-wrap .card").forEach(c => c.classList.add("hidden"));
+  // --- OVERRIDE STATE ---
+  // null = normal kiosk
+  // "locked" = lock overlay active
+  // "partner" = show partner verified view
+  let overrideMode = null;
+
+  // Keep handles so we can cancel them when override kicks in
+  let loadingIntervalHandle = null;
+  let confirmationTimeoutHandle = null;
+
+  function hideAllCards() {
+    document.querySelectorAll(".kiosk-wrap .card").forEach(c => c.classList.add("hidden"));
+  }
+
+  function showCard(id) {
+    hideAllCards();
+    document.getElementById(id).classList.remove("hidden");
+  }
+
+  function stopKioskTimers() {
+    if (loadingIntervalHandle) {
+      clearInterval(loadingIntervalHandle);
+      loadingIntervalHandle = null;
     }
+    if (confirmationTimeoutHandle) {
+      clearTimeout(confirmationTimeoutHandle);
+      confirmationTimeoutHandle = null;
+    }
+  }
 
-    async function checkLock() {
-      try {
-        const res = await fetch(`${LOCK_URL}?t=${Date.now()}`, { cache: "no-store" });
-        const text = (await res.text()).trim().toLowerCase();
+  function resetKioskToStart() {
+    stopKioskTimers();
+    step = 0;
+    document.getElementById("name").value = "";
+    document.getElementById("phone").value = "";
+    showCard("start-screen");
+  }
 
-        if (text === "yes") {
-          lockScreen.classList.remove("hidden");
-          hideAllCards();
-        } 
-        else if (text === "partner") {
-          lockScreen.classList.add("hidden");
-          hideAllCards();
-          document.getElementById("partner-screen").classList.remove("hidden");
-        } 
-        else {
-          lockScreen.classList.add("hidden");
+  async function checkLock() {
+    try {
+      const res = await fetch(`${LOCK_URL}?t=${Date.now()}`, { cache: "no-store" });
+      const text = (await res.text()).trim().toLowerCase();
 
-          // If currently on partner screen, reset kiosk
-          if (!document.getElementById("partner-screen").classList.contains("hidden")) {
-            hideAllCards();
-            step = 0;
-            document.getElementById("start-screen").classList.remove("hidden");
-          }
-        }
-      } catch (err) {
+      if (text === "yes") {
+        // LOCKED
+        overrideMode = "locked";
         lockScreen.classList.remove("hidden");
-        console.error("Lock check failed:", err);
+        stopKioskTimers(); // stop anything that would flip screens
+        // (No need to hide cards; lock overlay covers everything)
+        return;
       }
+
+      if (text === "partner") {
+        // PARTNER VERIFIED
+        overrideMode = "partner";
+        lockScreen.classList.add("hidden");
+        stopKioskTimers();      // ✅ prevents loading flow from overriding UI
+        showCard("partner-screen");
+        return;
+      }
+
+      // NORMAL KIOSK
+      lockScreen.classList.add("hidden");
+
+      // If we were in an override mode and now we’re not, reset cleanly
+      if (overrideMode !== null) {
+        overrideMode = null;
+        resetKioskToStart();
+      }
+    } catch (err) {
+      // Fail closed: show lock
+      overrideMode = "locked";
+      lockScreen.classList.remove("hidden");
+      console.error("Lock check failed:", err);
     }
+  }
 
-    checkLock();
-    setInterval(checkLock, 2000);
+  checkLock();
+  setInterval(checkLock, 2000);
 
-    /* === Kiosk Flow === */
-    let step = 0;
-    const steps = [
-      "start-screen",
-      "name-screen",
-      "phone-screen",
-      "loading-screen",
-      "confirmation-screen"
-    ];
+  /* === Kiosk Flow === */
+  let step = 0;
+  const steps = [
+    "start-screen",
+    "name-screen",
+    "phone-screen",
+    "loading-screen",
+    "confirmation-screen"
+  ];
 
-    const messages = [
-      "Communicating with database...",
-      "Finding name...",
-      "Checking access level...",
-      "Finalizing credentials...",
-      "Access granted."
-    ];
+  const messages = [
+    "Communicating with database...",
+    "Finding name...",
+    "Checking access level...",
+    "Finalizing credentials...",
+    "Access granted."
+  ];
 
-    function begin() {
-      nextStep();
-    }
+  function begin() {
+    nextStep();
+  }
 
-    function nextStep() {
-      document.getElementById(steps[step]).classList.add("hidden");
-      step++;
-      document.getElementById(steps[step]).classList.remove("hidden");
-    }
+  function nextStep() {
+    // Don't allow navigating if an override (locked/partner) is active
+    if (overrideMode) return;
 
-    function startLoading() {
-      nextStep();
+    document.getElementById(steps[step]).classList.add("hidden");
+    step++;
+    document.getElementById(steps[step]).classList.remove("hidden");
+  }
 
-      const status = document.getElementById("status-message");
-      let i = 0;
+  function startLoading() {
+    if (overrideMode) return;
 
-      const interval = setInterval(() => {
-        if (i < messages.length) {
-          status.textContent = messages[i++];
-        } else {
-          clearInterval(interval);
+    nextStep();
 
-          document.getElementById("loading-screen").classList.add("hidden");
-          document.getElementById("confirmation-screen").classList.remove("hidden");
+    const status = document.getElementById("status-message");
+    let i = 0;
 
-          setTimeout(() => {
-            document.getElementById("confirmation-screen").classList.add("hidden");
-            step = 0;
-            document.getElementById("name").value = "";
-            document.getElementById("phone").value = "";
-            document.getElementById("start-screen").classList.remove("hidden");
-          }, 4000);
-        }
-      }, 900);
-    }
-  </script>
+    // Save handle globally so we can clear it when partner/lock arrives
+    loadingIntervalHandle = setInterval(() => {
+      // If an override becomes active mid-load, abort immediately
+      if (overrideMode) {
+        stopKioskTimers();
+        return;
+      }
+
+      if (i < messages.length) {
+        status.textContent = messages[i++];
+      } else {
+        clearInterval(loadingIntervalHandle);
+        loadingIntervalHandle = null;
+
+        // If override kicked in right as we finished, don't show confirmation
+        if (overrideMode) return;
+
+        document.getElementById("loading-screen").classList.add("hidden");
+        document.getElementById("confirmation-screen").classList.remove("hidden");
+
+        confirmationTimeoutHandle = setTimeout(() => {
+          if (overrideMode) return;
+
+          document.getElementById("confirmation-screen").classList.add("hidden");
+          step = 0;
+          document.getElementById("name").value = "";
+          document.getElementById("phone").value = "";
+          document.getElementById("start-screen").classList.remove("hidden");
+          confirmationTimeoutHandle = null;
+        }, 4000);
+      }
+    }, 900);
+  }
+</script>
 
 </body>
 </html>
